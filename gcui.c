@@ -30,6 +30,13 @@
 #define LIGHT_COLOR							WHITE
 
 extern int errno;
+extern const struct {
+  int  	 			width;
+  int  	 			height;
+  int  	 			bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
+  
+  unsigned char 	pixel_data[140 * 197 * 4 + 1];
+} btlogo;
 
 static const char * sdir = NULL;
 char buf[100] = {0};
@@ -88,13 +95,15 @@ switchlight( void )
 int
 main( int argc, char *argv[] )
 {
+   	Image bt = {0};
+   	
     time_t tt = {0};
     struct tm * ti = NULL;
     
-	float f = 0, framerate = 30.0;
 	long l = 0;
+	float f = 0, framerate = 30.0;
 	const char * smetric = "mph", * tmetric = "°";
-	int i = 0, wwidth = 640,wheight = 480, fontsize = 0, 
+	int i = 0, wwidth = 640,wheight = 360, fontsize = 0, 
 		w = 0, mspeed = 80;
 	
 	const float sangle = 30.0, eangle = 360.0 - sangle;
@@ -133,6 +142,14 @@ main( int argc, char *argv[] )
    	
    	InitWindow(wwidth, wheight, "gcui");
    	SetTargetFPS(framerate);
+   	bt.width = btlogo.width;
+   	bt.height = btlogo.height;
+   	bt.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+    bt.mipmaps = 1;
+    bt.data = RL_MALLOC(sizeof(btlogo.pixel_data));
+    memcpy(bt.data, btlogo.pixel_data, sizeof(btlogo.pixel_data));
+    
+    Texture2D bttexture = LoadTextureFromImage(bt);
    	
    	while(!WindowShouldClose())
    	{
@@ -188,6 +205,15 @@ main( int argc, char *argv[] )
         //	(Vector2){.x =  w*1.25, .y = fontsize * 1.25}, fg);
         //DrawText(buf, wwidth/2 - w/2, wheight/2 + fontsize * 2.5, fontsize, bg);
         DrawText(buf, wwidth/2 - w/2, wheight/2 + fontsize * 2.5, fontsize, fg);
+        
+        // bt
+        sread("bt");
+        if(strtol(buf, NULL, 10) > 0)
+        {
+        	DrawTexturePro(bttexture, (Rectangle){.y = 0, .x = 0, .width = bt.width,
+        		.height = bt.height}, (Rectangle){.y = wheight * 0.02, .x = wwidth - wwidth * 0.1, .height = wwidth * 0.1,
+        		.width = wheight * 0.15}, (Vector2){0}, 0.0,WHITE);
+       	}
 	    
         // switch dark/light mode
         sread("theme");
