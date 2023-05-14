@@ -96,6 +96,8 @@ switchlight( void )
 int
 main( int argc, char *argv[] )
 {
+    Camera2D camera = {0};
+    
    	Image bt = {0};
    	
     time_t tt = {0};
@@ -105,16 +107,22 @@ main( int argc, char *argv[] )
 	float f = 0, framerate = 30.0, maxtemp = 100.0, mintemp = 0.0,
 		tm = 0.0;
 	const char * smetric = "mph", * tmetric = "°";
-	int i = 0, wwidth = 640,wheight = 360, fontsize = 0, 
-		w = 0, mspeed = 80;
+	int i = 0, wwidth = 640,wheight = 360, fontsize = 0,
+		w = 0, mspeed = 80, fullscreen = 0, flipscreen = 0;
 	
 	const float sangle = 30.0, eangle = 360.0 - sangle;
 	
 	sdir = "./";
-   	while((i = getopt(argc, argv, "s:x:y:f:t:n:")) != -1)
+   	while((i = getopt(argc, argv, "s:x:y:ft:n:er:")) != -1)
    	{
    		switch(i)
    		{
+   		case 'f':
+   			flipscreen = 1;
+   			break;
+   		case 'e':
+   			fullscreen = 1;
+   			break;
    		case 's':
    			if(!isdir(optarg))
    			{
@@ -141,7 +149,7 @@ main( int argc, char *argv[] )
    		case 'a':
    			smetric = optarg;
    			break;
-   		case 'f':
+   		case 'r':
    			framerate = MAX(0.0, strtof(optarg, NULL));
    		default:
    			break;
@@ -162,12 +170,29 @@ main( int argc, char *argv[] )
     memcpy(bt.data, btlogo.pixel_data, sizeof(btlogo.pixel_data));
     
     Texture2D bttexture = LoadTextureFromImage(bt);
+    
+    if(flipscreen)
+    {
+	    camera.offset = (Vector2){wwidth, wheight};
+	    camera.rotation = 180;
+	    camera.zoom = 1;
+	}
+    
+    if(fullscreen)
+    {
+    	ToggleFullscreen();
+    }
    	
    	while(!WindowShouldClose())
    	{
         BeginDrawing();
         
         ClearBackground(bg);
+	        
+	    if(flipscreen)
+	    {
+        	BeginMode2D(camera);
+       	}
         
         // speedometer
         sread("speed");
@@ -213,9 +238,6 @@ main( int argc, char *argv[] )
 	    );
         fontsize = wheight/10;
         w = MeasureText(buf, fontsize);
-        //DrawRectangleV((Vector2){.x =  wwidth/2 - w*1.25/2, .y = wheight/2 + fontsize * 2.3},
-        //	(Vector2){.x =  w*1.25, .y = fontsize * 1.25}, fg);
-        //DrawText(buf, wwidth/2 - w/2, wheight/2 + fontsize * 2.5, fontsize, bg);
         DrawText(buf, wwidth/2 - w/2, wheight/2 + fontsize * 2.5, fontsize, fg);
         
         // bt
