@@ -14,6 +14,7 @@
 
 #define uchar								unsigned char
 
+#define SWAP(x, y, t)						({t _s = x; x = y; y = _s;})
 #define MIN(x, y)      						(((x) <= (y) ? (x) : (y)))
 #define MAX(x, y)      						(((x) > (y) ? (x) : (y)))
 #define COLOR(_r, _g, _b)					(Color){(_r), (_g), (_b), 255}
@@ -101,7 +102,8 @@ main( int argc, char *argv[] )
     struct tm * ti = NULL;
     
 	long l = 0;
-	float f = 0, framerate = 30.0;
+	float f = 0, framerate = 30.0, maxtemp = 100.0, mintemp = 0.0,
+		tm = 0.0;
 	const char * smetric = "mph", * tmetric = "°";
 	int i = 0, wwidth = 640,wheight = 360, fontsize = 0, 
 		w = 0, mspeed = 80;
@@ -109,7 +111,7 @@ main( int argc, char *argv[] )
 	const float sangle = 30.0, eangle = 360.0 - sangle;
 	
 	sdir = "./";
-   	while((i = getopt(argc, argv, "s:x:y:f:")) != -1)
+   	while((i = getopt(argc, argv, "s:x:y:f:t:n:")) != -1)
    	{
    		switch(i)
    		{
@@ -120,6 +122,12 @@ main( int argc, char *argv[] )
    				return -ENOENT;
   			}
    			sdir = optarg;
+   			break;
+   		case 'n':
+   			mintemp = strtof(optarg, NULL);
+   			break;
+   		case 't':
+   			maxtemp = strtof(optarg, NULL);
    			break;
    		case 'x':
    			wwidth = strtol(optarg, NULL, 10);
@@ -139,6 +147,10 @@ main( int argc, char *argv[] )
    			break;
    		}
    	}
+   	
+   	if(maxtemp < mintemp)
+   		SWAP(maxtemp, mintemp, float);
+   	tm = maxtemp - mintemp;
    	
    	InitWindow(wwidth, wheight, "gcui");
    	SetTargetFPS(framerate);
@@ -172,12 +184,12 @@ main( int argc, char *argv[] )
         	
         // temperature
         sread("temperature");
-        f = strtof(buf, NULL);
+        f = MAX(MIN(strtof(buf, NULL), maxtemp), mintemp);
         fontsize = wwidth/20;
         snprintf(buf, sizeof(buf), "%.1f%s", f, tmetric);
         DrawText(buf, fontsize/2, wheight - fontsize - (wheight * .40) * .2, fontsize, fg);
         DrawRing(((Vector2){.x = 0, .y = wheight + fontsize}), wheight * .45, wheight * .40,
-        	0.0, 360.0, 100, fg);
+        	100.0, 100.0 + 80.0*((f - mintemp)/tm), 100, fg);
         
         // battery
         sread("battery");
@@ -187,7 +199,7 @@ main( int argc, char *argv[] )
         w = MeasureText(buf, fontsize);
         DrawText(buf, wwidth - w - fontsize/2, wheight - fontsize - (wheight * .40) * .2, fontsize, fg);
         DrawRing(((Vector2){.x = wwidth, .y = wheight + fontsize}), wheight * .45, wheight * .40,
-        	0.0, 360.0, 100, fg);
+        	-100.0, -100.0 - 80.0*f, 100, fg);
         	
         // clock
         time(&tt);
