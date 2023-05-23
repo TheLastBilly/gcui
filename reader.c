@@ -7,12 +7,13 @@
 #include <unistd.h>
 #include <signal.h>
 
-int fd = 0;
+static int verbose = 0;
+static int fd = 0;
 static char buf[100] = {0};
 static char parsed[sizeof(100)] = {0};
-const char * sdir = "./";
-const char * spath = "/dev/ttyACM0";
-volatile int shouldrun = 1;
+static const char * sdir = "./";
+static const char * spath = "/dev/ttyACM0";
+static volatile int shouldrun = 1;
 
 extern int errno;
 
@@ -33,6 +34,8 @@ parse( int i )
 		{
 			memmove(parsed, &buf[s], e - s + 1);
 			parsed[e-s] = 0;
+    		if(verbose)
+    			printf("parse(%d): %s\n", i, parsed);
 			return 0;
 		}
 		else
@@ -137,10 +140,13 @@ int main(int argc, char *argv[])
 	int i = 0, r = 0, t = 0;
 	
 	signal(SIGINT, sigint);
-   	while((i = getopt(argc, argv, "s:p:")) != -1)
+   	while((i = getopt(argc, argv, "s:p:v")) != -1)
    	{
    		switch(i)
    		{
+   		case 'v':
+   			verbose = 1;
+   			break;
    		case 's':
    			spath = optarg;
    			break;
@@ -193,6 +199,10 @@ recon:
     	{
     		buf[t-3] = 0;
     		memmove(buf, &buf[1], t-2);
+    		
+    		if(verbose)
+    			printf("recevied: %s\n", buf);
+    		
     		parse(0);
     		swrite("battery", parsed);
     		parse(1);
