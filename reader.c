@@ -168,7 +168,7 @@ recon:
     while(shouldrun)
     {
     	r = read(fd, &buf[t], sizeof(buf) - t);
-    	if(r < 0)
+    	if(r <= 0)
     	{
     		r = 0;
     		//printf("failed to read from socket: %s\n", strerror(errno));
