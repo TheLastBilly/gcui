@@ -183,7 +183,7 @@ main( int argc, char *argv[] )
     	ToggleFullscreen();
     }
    	
-   	while(!WindowShouldClose() && IsKeyDown(KEY_Q))
+   	while(!WindowShouldClose() && !IsKeyDown(KEY_Q))
    	{
         BeginDrawing();
         
