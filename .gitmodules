@@ -1,6 +1,6 @@
 [submodule "rpi/raylib"]
 	path = rpi/raylib
-	url = https://github.com/raysan5/raylib
+	url = https://github.com/TheLastBilly/raylib
 [submodule "rpi/buildroot"]
 	path = rpi/buildroot
 	url = https://github.com/buildroot/buildroot

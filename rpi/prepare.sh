@@ -4,11 +4,11 @@
 git submodule update --init
 
 # First pass, buildtoolchain an image
-cp gcui_defconfig buildroot/configs/gcui_defconfig
-cd buildroot/
-make gcui_defconfig
-make toolchain -j4
-cd ../
+#cp gcui_defconfig buildroot/configs/gcui_defconfig
+#cd buildroot/
+#make gcui_defconfig
+#make -j4
+#cd ../
 
 # Build raylib
 cd raylib/src
@@ -27,5 +27,5 @@ cp raylib/src/libraylib.so* ../../buildroot/output/target/usr/lib
 cp ../gcui ../reader ../../buildroot/output/target/usr/bin
 
 # Make image
-cd buildroot/
-make -j4
+#cd buildroot/
+#make -j4
