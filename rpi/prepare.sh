@@ -4,11 +4,11 @@
 git submodule update --init
 
 # First pass, buildtoolchain an image
-#cp gcui_defconfig buildroot/configs/gcui_defconfig
-#cd buildroot/
-#make gcui_defconfig
-#make -j4
-#cd ../
+cp gcui_defconfig buildroot/configs/gcui_defconfig
+cd buildroot/
+make gcui_defconfig
+make -j4
+cd ../
 
 # Build raylib
 cd raylib/src
@@ -23,9 +23,12 @@ TOOLCHAIN_PATH=rpi/buildroot/output/host/ TOOLCHAIN_NAME=arm-buildroot-linux-mus
 cd rpi
 
 # Install on target fs
-cp raylib/src/libraylib.so* ../../buildroot/output/target/usr/lib
-cp ../gcui ../reader ../../buildroot/output/target/usr/bin
+cp raylib/src/libraylib.so* buildroot/output/target/usr/lib
+cp ../gcui ../reader buildroot/output/target/usr/bin
+
+# Configure image
+echo "vc4-kms-v3d" >> buildroot/output/images/rpi-firmware/config.txt
 
 # Make image
-#cd buildroot/
-#make -j4
+cd buildroot/
+make -j4
