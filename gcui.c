@@ -5,6 +5,7 @@
 #include <getopt.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -39,44 +40,42 @@ extern const struct {
   unsigned char 	pixel_data[140 * 197 * 4 + 1];
 } btlogo;
 
-static const char * sdir = NULL;
+static const char * spath = NULL;
 char buf[100] = {0};
+static char parsed[sizeof(buf)] = {0};
 Color fg = LIGHT_COLOR, bg = LIGHT_DARK_COLOR;
 static int theme = 0;
+static int fd = 0;
 
 static int
-isdir( const char * p )
+parse( int i )
 {
-	struct stat ps = {0};
-	if(stat(p, &ps) != 0)
-		return 0;
-	return S_ISDIR(ps.st_mode);
-}
-
-static int
-sread( const char * s )
-{
-    long fsize = 0, r = 0;
-    FILE * fp = NULL;
-
-	snprintf(buf, sizeof(buf) - 1, "%s/%s",
-		sdir, s);
+	int s = 0, e = 0;
 	
-    fp = fopen(buf, "r");
-    if(fp == NULL)
-        return errno;
-    
-    fseek(fp, 0, SEEK_END);
-    fsize = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    
-    fsize = MIN(fsize, sizeof(buf));
-    while(r < fsize)
-        r += fread(&buf[r], sizeof(buf[0]), fsize, fp);
-
-    fclose(fp);
-
-    return 0;
+	while(buf[e] > 0 && e < sizeof(buf))
+	{
+		if(buf[e] != ',' && buf[e] != 0)
+		{
+			e++;
+			continue;
+		}
+		
+		if(i <= 0)
+		{
+			memmove(parsed, &buf[s], e - s + 1);
+			parsed[e-s] = 0;
+			return 0;
+		}
+		else
+		{
+			i--;
+			s = e + 1;	
+		}
+		
+		e++;
+	}
+	
+	return 0;
 }
 
 static inline void
@@ -108,11 +107,12 @@ main( int argc, char *argv[] )
 		tm = 0.0;
 	const char * smetric = "mph", * tmetric = "°";
 	int i = 0, wwidth = 640,wheight = 360, fontsize = 0,
-		w = 0, mspeed = 80, fullscreen = 0, flipscreen = 0;
+		w = 0, mspeed = 80, fullscreen = 0, flipscreen = 0,
+		t = 0, r = 0;
 	
 	const float sangle = 30.0, eangle = 360.0 - sangle;
 	
-	sdir = "./";
+	spath = "/dev/ttyACM0";
    	while((i = getopt(argc, argv, "s:x:y:ft:n:er:")) != -1)
    	{
    		switch(i)
@@ -124,12 +124,7 @@ main( int argc, char *argv[] )
    			fullscreen = 1;
    			break;
    		case 's':
-   			if(!isdir(optarg))
-   			{
-   				printf("\"%s\" is not a directory\n", optarg);
-   				return -ENOENT;
-  			}
-   			sdir = optarg;
+   			spath = optarg;
    			break;
    		case 'n':
    			mintemp = strtof(optarg, NULL);
@@ -155,6 +150,13 @@ main( int argc, char *argv[] )
    			break;
    		}
    	}
+   	
+    fd = open (spath, O_RDONLY);
+    if (fd < 0)
+    {
+    	printf("failed to open socket: %s\n\n", strerror(errno));
+        return 1;
+    }
    	
    	if(maxtemp < mintemp)
    		SWAP(maxtemp, mintemp, float);
@@ -185,6 +187,28 @@ main( int argc, char *argv[] )
    	
    	while(!WindowShouldClose() && !IsKeyDown(KEY_Q))
    	{
+    	r = read(fd, &buf[t], sizeof(buf) -1);
+    	if(r < 0)
+    	{
+    		break;
+    	}
+    	else
+    	{
+    		t += r;
+    		if(t >= sizeof(buf))
+    		{
+    			t = 0;
+    			continue;
+    		}
+    	}
+    	
+    	if(t > 0 && buf[0] == '[' && buf[t-2] == ']')
+    	{
+    		buf[t-2] = 0;
+    		memmove(buf, &buf[1], t-2);
+    	}
+    	t = 0;
+    	
         BeginDrawing();
         
         ClearBackground(bg);
@@ -195,12 +219,12 @@ main( int argc, char *argv[] )
        	}
         
         // speedometer
-        sread("speed");
-        l = MIN(strtol(buf, NULL, 10), mspeed);
-        snprintf(buf, sizeof(buf), "%ld", l);
+        parse(1);
+        l = MIN(strtol(parsed, NULL, 10), mspeed);
+        snprintf(parsed, sizeof(parsed), "%ld", l);
         fontsize = wwidth/6;
-        w = MeasureText(buf, fontsize);
-        DrawText(buf, wwidth/2 - w/2, wheight/2 - fontsize/2, fontsize, fg);			// speed
+        w = MeasureText(parsed, fontsize);
+        DrawText(parsed, wwidth/2 - w/2, wheight/2 - fontsize/2, fontsize, fg);			// speed
         fontsize = fontsize/4;
         w = MeasureText(smetric, fontsize);
         DrawText(smetric, wwidth/2 - w/2, wheight/2 + fontsize*4/3, fontsize, fg);		// metric
@@ -208,21 +232,21 @@ main( int argc, char *argv[] )
         	wheight/2 - wheight/20, -sangle, -(sangle + (eangle - sangle)*((float)l/(float)mspeed)), 100, fg);
         	
         // temperature
-        sread("temperature");
-        f = MAX(MIN(strtof(buf, NULL), maxtemp), mintemp);
+        parse(2);
+        f = MAX(MIN(strtof(parsed, NULL), maxtemp), mintemp);
         fontsize = wwidth/20;
-        snprintf(buf, sizeof(buf), "%.1f%s", f, tmetric);
-        DrawText(buf, fontsize/2, wheight - fontsize - (wheight * .40) * .2, fontsize, fg);
+        snprintf(parsed, sizeof(parsed), "%.1f%s", f, tmetric);
+        DrawText(parsed, fontsize/2, wheight - fontsize - (wheight * .40) * .2, fontsize, fg);
         DrawRing(((Vector2){.x = 0, .y = wheight + fontsize}), wheight * .45, wheight * .40,
         	100.0, 100.0 + 80.0*((f - mintemp)/tm), 100, fg);
         
         // battery
-        sread("battery");
-        f = MIN(MAX(0.0, strtof(buf, NULL)), 1.0);
+        parse(0);
+        f = MIN(MAX(0.0, strtof(parsed, NULL)), 1.0);
         fontsize = wwidth/20;
-        snprintf(buf, sizeof(buf), "%d%%", (int)(f*100));
-        w = MeasureText(buf, fontsize);
-        DrawText(buf, wwidth - w - fontsize/2, wheight - fontsize - (wheight * .40) * .2, fontsize, fg);
+        snprintf(parsed, sizeof(parsed), "%d%%", (int)(f*100));
+        w = MeasureText(parsed, fontsize);
+        DrawText(parsed, wwidth - w - fontsize/2, wheight - fontsize - (wheight * .40) * .2, fontsize, fg);
         DrawRing(((Vector2){.x = wwidth, .y = wheight + fontsize}), wheight * .45, wheight * .40,
         	-100.0, -100.0 - 80.0*f, 100, fg);
         	
@@ -230,41 +254,42 @@ main( int argc, char *argv[] )
         time(&tt);
 	    ti = localtime(&tt);
 	
-	    snprintf(buf, sizeof(buf), 
-	        "%02d:%02d %s",	
+	    snprintf(parsed, sizeof(parsed), 
+	        "%02d:%02d %s",
 	        ti->tm_hour%12,
 	        ti->tm_min,
 	        ti->tm_hour >= 12 ? "PM" : "AM"
 	    );
         fontsize = wheight/10;
-        w = MeasureText(buf, fontsize);
-        DrawText(buf, wwidth/2 - w/2, wheight/2 + fontsize * 2.5, fontsize, fg);
+        w = MeasureText(parsed, fontsize);
+        DrawText(parsed, wwidth/2 - w/2, wheight/2 + fontsize * 2.5, fontsize, fg);
         
         // bt
-        sread("bt");
-        if(strtol(buf, NULL, 10) > 0)
-        {
-        	DrawTexturePro(bttexture, (Rectangle){.y = 0, .x = 0, .width = bt.width,
-        		.height = bt.height}, (Rectangle){.y = wheight * 0.02, .x = wwidth - wwidth * 0.1, .height = wwidth * 0.1,
-        		.width = wheight * 0.15}, (Vector2){0}, 0.0,WHITE);
-       	}
+     //   sread("bt");
+     //   if(strtol(parsed, NULL, 10) > 0)
+     //   {
+     //   	DrawTexturePro(bttexture, (Rectangle){.y = 0, .x = 0, .width = bt.width,
+     //   		.height = bt.height}, (Rectangle){.y = wheight * 0.02, .x = wwidth - wwidth * 0.1, .height = wwidth * 0.1,
+     //   		.width = wheight * 0.15}, (Vector2){0}, 0.0,WHITE);
+     //  	}
 	    
         // switch dark/light mode
-        sread("theme");
-        i = strtol(buf, NULL, 10) == 1;
-        if(theme != i)
-        {
-        	theme = i;
-        	if(theme)
-        		switchlight();
-        	else
-        		switchdark();
-        }
+        //sread("theme");
+        //i = strtol(parsed, NULL, 10) == 1;
+        //if(theme != i)
+        //{
+        //	theme = i;
+        //	if(theme)
+        //		switchlight();
+        //	else
+        //		switchdark();
+        //}
 		
         EndDrawing();
    	}
    	
    	CloseWindow();
+   	close(fd);
    	
 	return 0;
 }
