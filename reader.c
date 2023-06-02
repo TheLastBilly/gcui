@@ -93,6 +93,7 @@ int main(int argc, char *argv[])
    		}
    	}
 
+recon:
     fd = open (spath, O_RDONLY);
     if (fd < 0)
     {
@@ -106,7 +107,8 @@ int main(int argc, char *argv[])
     	r = read(fd, &buf[t], sizeof(buf) -1);
     	if(r < 0)
     	{
-            continue;
+            close(fd);
+            goto recon;
     	}
     	else
     	{
