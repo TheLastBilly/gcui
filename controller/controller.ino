@@ -19,8 +19,10 @@
 #define THERMISTOR_C3   2.019202697e-07
 #define THERMISTOR_PIN  A3
 
+#ifndef ADC_RESOLUTION
 #define RESOLUTION(x)   (0x01 << ((x)))
 #define ADC_RESOLUTION  RESOLUTION(10)
+#endif
 
 #define REFERENCE_VOLTAGE 5.0
 

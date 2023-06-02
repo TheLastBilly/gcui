@@ -71,17 +71,10 @@ swrite( const char * s, const char * str )
     return 0;
 }
 
-static inline void
-sigint(int n)
-{
-	shouldrun = 0;
-}
-
 int main(int argc, char *argv[])
 {
 	int i = 0, r = 0, t = 0;
 	
-	signal(SIGINT, sigint);
    	while((i = getopt(argc, argv, "s:p:v")) != -1)
    	{
    		switch(i)
@@ -127,8 +120,7 @@ int main(int argc, char *argv[])
     	
     	if(t < 1)
     		continue;
-    	
-    	if(buf[0] == '[' && buf[t-3] == ']')
+    	if(buf[0] == '[' && buf[t-2] == ']')
     	{
     		buf[t-3] = 0;
     		memmove(buf, &buf[1], t-2);
