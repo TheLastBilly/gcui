@@ -27,7 +27,13 @@ cp raylib/src/libraylib.so* buildroot/output/target/usr/lib
 cp ../gcui ../reader buildroot/output/target/usr/bin
 
 # Configure image
-echo "vc4-kms-v3d" >> buildroot/output/images/rpi-firmware/config.txt
+echo "start_file=start.elf
+fixup_file=fixup.dat
+kernel=zImage
+disable_overscan=1
+gpu_mem=100
+dtoverlay=miniuart-bt,krnbt=on
+dtoverlay=vc4-kms-v3d" > buildroot/output/images/rpi-firmware/config.txt
 
 # Make image
 cd buildroot/
